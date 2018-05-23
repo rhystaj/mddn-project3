@@ -28,7 +28,6 @@ window.onload = () => {
   });
 
   logoutButton.addEventListener('click', e => {
-    alert("Signing out.");
     auth.signOut();
   });
 

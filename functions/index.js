@@ -9,26 +9,19 @@ var usersSnap;
 */
  exports.requestRecieved = functions.database.ref('/requests/{pushId}').onCreate((snap, cont) => {
     
-    return snap.ref.parent.parent.child('pendingRequest').set(snap.key);
+    snap.ref.parent.parent.on('value', s => {
 
- });
+        if(s.val().pendingRequest.localeCompare(snap.key) !== 0) {
+            return 
+        }
+        
+        console.log("I'm here.");
 
- /*
-    Fires whan anywhere is the database is edited, but is only concernced with when the pending request is changed.
- */
-exports.processPendingRequest = functions.database.ref("/").onUpdate((change, cont) => {
+        const requestID = s.val().pendingRequest;
+        const request = s.val().requests[requestID];
 
-    if(change.before.val().pendingRequest.localeCompare(change.after.val().pendingRequest) === 0) {
-        return new Promise((resolve, reject) => {});
-    }
-
-    return new Promise((resolve, reject) => {
-
-        const requestID = change.after.val().pendingRequest;
-        const request = change.after.val().requests[requestID];
-
-        const usersRef = change.after.ref.child('users');
-        const users = change.after.val().users;
+        const usersRef = s.ref.child('users');
+        const users = s.val().users;
 
         console.log(users);
 
@@ -38,9 +31,11 @@ exports.processPendingRequest = functions.database.ref("/").onUpdate((change, co
             usersRef.child(element).child("requests").child(requestID).set(request);
         });
 
-        return resolve("Users assigned requests");
-
+        snap.ref.parent.parent.off('value');
+    
     });
+
+    return snap.ref.parent.parent.child('pendingRequest').set(snap.key);
 
  });
 
