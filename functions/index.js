@@ -7,39 +7,24 @@ var usersSnap;
 /*
     Fires when a user send a request to the database.
 */
- exports.requestRecieved = functions.database.ref('/requests/{pushId}').onCreate((snap, cont) => {
+ exports.requestRecieved = functions.database.ref('/requests/{pushId}').onCreate((newRequestSnap, cont) => {
     
-    //Set up the database, so that when it receievs the request, it will distibute it to the users.
-    snap.ref.parent.parent.on('value', s => {
+    const dbroot = newRequestSnap.ref.parent.parent;
 
-        if(s.val().pendingRequest.localeCompare(snap.key) !== 0) {
-            return 
-        }
-        
-        console.log("I'm here.");
+    //Get a snapshot of the users.
+    return dbroot.child('users').once('value', usersSnap => {
 
-        const requestID = s.val().pendingRequest;
-        const request = s.val().requests[requestID];
+        //Add the request's id to the lists of the user's sent requests.
+        usersSnap.ref.child(newRequestSnap.val().senderId).child("sentRequests").child(newRequestSnap.key).set(true);
 
-        const usersRef = s.ref.child('users');
-        const users = s.val().users;
-
-        usersRef.child(request.senderId).child("sentRequests").child(requestID).set(request);
-
-        //Find all the people who can help and give them a copy of the request.
-        const helpers = getPossibleHelpers(request, users);
-        helpers.forEach(element => {
-            console.log(requestID);
-            usersRef.child(element).child("assignedRequests").child(requestID).set(request);
+        //Filter out irrelevant users and give the others a copy of the request id.
+        const possibleHelpers = getPossibleHelpers(newRequestSnap.val(), usersSnap.val());
+        possibleHelpers.forEach(helper => {
+            usersSnap.ref.child(helper).child('assignedRequests').child(newRequestSnap.key).set(true);
         });
 
-        //Detatch the listener once the relevant operation has been performed.
-        snap.ref.parent.parent.off('value');
-    
     });
 
-    //Update the database with a new pending request.
-    return snap.ref.parent.parent.child('pendingRequest').set(snap.key);
 
  });
 

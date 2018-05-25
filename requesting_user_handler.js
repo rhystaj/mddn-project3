@@ -20,11 +20,22 @@ window.onload = () => {
   //Hook buttons up to listeners.
   const submitButton = document.getElementById("submit_button");
   const requestField = document.getElementById("request_text");
+  const responseField = document.getElementById("response_text");
+  const respondButton = document.getElementById("respond_button");
+  const requestSelector = document.getElementById("request_select");
   const logoutButton = document.getElementById("logout_button");
   
   submitButton.addEventListener('click', e => {
     sendRequest(requestField.value, currentUser);
     requestField.value = "";
+  });
+
+  respondButton.addEventListener('click', e => {
+    
+    selectionValues = requestSelector.options[requestSelector.selectedIndex].value.split(":::");
+    sendResponse(selectionValues[0], selectionValues[1], responseField.value, currentUser);
+    responseField.value = "";
+
   });
 
   logoutButton.addEventListener('click', e => {
@@ -56,9 +67,32 @@ function onUserAndPageLoaded(){
   if(--eventsToFire > 0) return;
 
   const requestsDiv = document.getElementById("requests");
-  db.child("users").child(currentUser.uid).child("assignedRequests").on('value', (snap, cont) => {
-    if((typeof snap.val()).localeCompare('string') === 0) return;
-    requestsDiv.innerHTML = generateRequestsHTML(snap.val());
+  db.child("users").child(currentUser.uid).child("assignedRequests").on('value', (assignedRequestsSnap, cont) => {
+    
+    //If the requets branch is empty, its value would just be a string.
+    if((typeof assignedRequestsSnap.val()).localeCompare('string') === 0) return;
+    
+    const requestIds = Object.keys(assignedRequestsSnap.val());
+      
+    const requestsDiv = document.getElementById('requests');
+    const requestSelect = document.getElementById('request_select');
+    const requestsRef = assignedRequestsSnap.ref.parent.parent.parent.child("requests");
+
+    requestsDiv.innerHTML = "";
+    requestSelect.innerHTML = "";
+    requestIds.forEach(id => {
+
+        requestsRef.child(id).once('value', requestSnap => {
+          
+          const request = requestSnap.val();
+          requestsDiv.innerHTML += `<p><b>${request.senderName}:</b> ${request.message}</p>`;
+          requestSelect.innerHTML += `<option value="${request.senderId}:::${requestSnap.key}">${request.message}</option>`;
+          
+        });
+
+      });
+
+
   });
 
 }
@@ -84,5 +118,17 @@ function sendRequest(msg, user){
   }
 
   db.child("requests").push(request);
+
+}
+
+function sendResponse(recipient, requestId, msg, user){
+
+  response = {
+    message: msg,
+    responderName: user.email,
+    responderId: user.uid
+  };
+
+  db.child("users").child(recipient).child("responses").child(requestId).push(response);
 
 }
