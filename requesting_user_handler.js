@@ -56,7 +56,7 @@ function onUserAndPageLoaded(){
   if(--eventsToFire > 0) return;
 
   const requestsDiv = document.getElementById("requests");
-  db.child("users").child(currentUser.uid).child("requests").on('value', (snap, cont) => {
+  db.child("users").child(currentUser.uid).child("assignedRequests").on('value', (snap, cont) => {
     if((typeof snap.val()).localeCompare('string') === 0) return;
     requestsDiv.innerHTML = generateRequestsHTML(snap.val());
   });
